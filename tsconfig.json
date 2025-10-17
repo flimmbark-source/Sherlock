@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "es2020"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["./*"] },
+    "types": ["node"]
+  },
+  "include": ["**/*.ts", "**/*.tsx", "tools/*.ts"],
+  "exclude": ["node_modules", "dist", ".next"]
+}
