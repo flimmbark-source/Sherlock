@@ -595,7 +595,7 @@ function EnigmaPaintingReactKeyUIInner() {
                           {assignedSentence && <span className="text-xs text-muted-foreground">Placed</span>}
                         </div>
                         {assignedSentence && (
-                          <p className="text-xs text-muted-foreground">Placed in "{assignedSentence.sentenceText}".</p>
+                          <p className="text-xs text-muted-foreground">Placed in &ldquo;{assignedSentence.sentenceText}&rdquo;.</p>
                         )}
                       </div>
                     );
