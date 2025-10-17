@@ -7,6 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RefreshCcw, Download, Beaker, Image as ImageIcon } from "lucide-react";
 import { Delaunay } from "d3-delaunay";
+import {
+  DeductionStoreProvider,
+  useDeductionStore,
+  type ClueNode,
+  type DeductionSentence,
+} from "./deductionStore";
 
 const W = 800, H = 800;
 
@@ -154,7 +160,7 @@ type ShapeOut = {
   regionId: number;
 };
 
-export default function EnigmaPaintingReactKeyUI() {
+function EnigmaPaintingReactKeyUIInner() {
   const [seed, setSeed] = useState<number>(7);
   const [complexity, setComplexity] = useState<number>(150);
   const [threshold, setThreshold] = useState<number>(130);
@@ -253,6 +259,80 @@ export default function EnigmaPaintingReactKeyUI() {
 
     return { shapes, svgData, jsonData };
   }, [seed, complexity, colorMode, showKeyOutline, showNumbers, keyPaths, threshold]);
+
+  const { clues, sentences, hydrate, setClueDiscovered, setSentenceValidated } = useDeductionStore();
+
+  const clueNodes = useMemo<ClueNode[]>(() => {
+    return shapes.map((shape) => ({
+      id: `cell-${shape.id}`,
+      title: `Cell ${shape.number}`,
+      summary: shape.key_region ? "Located within the key silhouette." : "Outside the key silhouette.",
+      cellRefs: [
+        {
+          shapeId: shape.id,
+          number: shape.number,
+          regionId: shape.regionId,
+        },
+      ],
+      discovered: false,
+    }));
+  }, [shapes]);
+
+  const deductionSentences = useMemo<DeductionSentence[]>(() => {
+    if (!clueNodes.length) return [];
+
+    const keyClueSlots = clueNodes
+      .filter((clue) => clue.cellRefs.some((ref) => ref.regionId === 1))
+      .slice(0, 3)
+      .map((clue, index) => ({
+        id: `${clue.id}-key-${index}`,
+        clueId: clue.id,
+        label: `Confirm ${clue.title} belongs to region ${clue.cellRefs[0]?.regionId ?? 1}`,
+      }));
+
+    const backgroundClueSlots = clueNodes
+      .filter((clue) => clue.cellRefs.every((ref) => ref.regionId === 0))
+      .slice(0, 3)
+      .map((clue, index) => ({
+        id: `${clue.id}-background-${index}`,
+        clueId: clue.id,
+        label: `Confirm ${clue.title} remains outside the key silhouette`,
+      }));
+
+    const sentences: DeductionSentence[] = [];
+
+    if (keyClueSlots.length) {
+      sentences.push({
+        id: "deduction-key-region",
+        text: "Key region cells align with the key silhouette.",
+        slots: keyClueSlots,
+        validated: false,
+      });
+    }
+
+    if (backgroundClueSlots.length) {
+      sentences.push({
+        id: "deduction-background",
+        text: "Background cells remain outside the silhouette.",
+        slots: backgroundClueSlots,
+        validated: false,
+      });
+    }
+
+    return sentences;
+  }, [clueNodes]);
+
+  useEffect(() => {
+    hydrate(clueNodes, deductionSentences);
+  }, [clueNodes, deductionSentences, hydrate]);
+
+  const clueList = useMemo(() => {
+    return Object.values(clues).sort((a, b) => (a.cellRefs[0]?.number ?? 0) - (b.cellRefs[0]?.number ?? 0));
+  }, [clues]);
+
+  const sentenceList = useMemo(() => {
+    return Object.values(sentences).sort((a, b) => a.text.localeCompare(b.text));
+  }, [sentences]);
 
   const randomizeSeed = () => setSeed(Math.floor(Math.random() * 9999) + 1);
 
@@ -358,6 +438,91 @@ export default function EnigmaPaintingReactKeyUI() {
           </svg>
         </CardContent>
       </Card>
+
+      <Card className="lg:col-span-12">
+        <CardHeader>
+          <CardTitle>Deduction Tracker</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <section>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Clues</h3>
+            <div className="mt-2 space-y-3">
+              {clueList.length ? (
+                clueList.map((clue) => {
+                  const cellSummary = clue.cellRefs
+                    .map((ref) => `#${ref.number} (region ${ref.regionId})`)
+                    .join(", ");
+                  return (
+                    <div
+                      key={clue.id}
+                      className="flex items-start justify-between gap-4 rounded border p-3"
+                    >
+                      <div className="space-y-1">
+                        <p className="font-medium">{clue.title}</p>
+                        {clue.summary && (
+                          <p className="text-sm text-muted-foreground">{clue.summary}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{cellSummary}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={clue.discovered ? "secondary" : "outline"}
+                        onClick={() => setClueDiscovered(clue.id, !clue.discovered)}
+                      >
+                        {clue.discovered ? "Mark Unfound" : "Mark Found"}
+                      </Button>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">No clue nodes available yet.</p>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Deductions</h3>
+            <div className="mt-2 space-y-3">
+              {sentenceList.length ? (
+                sentenceList.map((sentence) => (
+                  <div key={sentence.id} className="space-y-2 rounded border p-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="font-medium">{sentence.text}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Requires: {sentence.slots.map((slot) => slot.label).join(", ")}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={sentence.validated ? "secondary" : "outline"}
+                        onClick={() => setSentenceValidated(sentence.id, !sentence.validated)}
+                      >
+                        {sentence.validated ? "Mark Pending" : "Mark Valid"}
+                      </Button>
+                    </div>
+                    <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                      {sentence.slots.map((slot) => (
+                        <li key={slot.id}>{slot.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No deduction sentences available yet.</p>
+              )}
+            </div>
+          </section>
+        </CardContent>
+      </Card>
     </div>
+  );
+}
+
+export default function EnigmaPaintingReactKeyUI() {
+  return (
+    <DeductionStoreProvider>
+      <EnigmaPaintingReactKeyUIInner />
+    </DeductionStoreProvider>
   );
 }
