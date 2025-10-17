@@ -1,0 +1,66 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck --if-present
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Build
+        run: npm run build --if-present
+      - name: Upload web build
+        if: ${{ success() && hashFiles('dist/**','.next/**') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            dist
+            .next
+
+  build-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+      - name: Install python deps
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          if [ -f pyproject.toml ]; then pip install .; fi
+      - name: Import checks
+        run: python - << 'PY'
+from importlib import import_module
+for m in ["shapely", "matplotlib"]:
+    import_module(m)
+print("Python deps OK")
+PY
+      - name: Smoke run (no export)
+        env:
+          MPLBACKEND: Agg
+        run: |
+          if [ -f scripts/smoke_enigma.py ]; then python scripts/smoke_enigma.py; else echo "No smoke script"; fi
+      - name: Upload generated artifacts (if any)
+        uses: actions/upload-artifact@v4
+        with:
+          name: enigma-artifacts
+          path: |
+            enigma_painting_key_mask.svg
+            enigma_painting_key_mask.json
+          if-no-files-found: ignore

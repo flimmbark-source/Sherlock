@@ -1,0 +1,5 @@
+shapely>=2.0
+matplotlib>=3.7
+numpy>=1.26
+# pillow for image IO in mask extractor (if needed)
+Pillow>=10.0

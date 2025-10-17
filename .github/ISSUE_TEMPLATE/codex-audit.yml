@@ -1,0 +1,21 @@
+name: "Codex Audit Result"
+description: "Paste the Codex/ChatGPT audit output here and track fixes."
+title: "[AUDIT] Repo setup findings"
+labels: ["audit", "setup"]
+body:
+  - type: textarea
+    id: findings
+    attributes:
+      label: Findings (paste AI output)
+      description: Paste the full “Setup Gaps / Fix Plan / Ready Checklist”.
+      placeholder: Paste here
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Ready Checklist
+      options:
+        - label: Node deps installed (npm ci)
+        - label: Python deps installed (pip -r requirements.txt)
+        - label: `npm run build` succeeds
+        - label: Python smoke test succeeds
+        - label: SVG/JSON exported & previewed
