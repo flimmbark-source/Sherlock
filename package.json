@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "npm run lint",
     "typecheck": "tsc --noEmit",
     "audit:prompt": "ts-node --transpile-only tools/gen_codex_prompt.ts",
     "audit:save": "ts-node --transpile-only tools/gen_codex_prompt.ts > CODEx_PROMPT.out.md && echo 'Wrote CODEx_PROMPT.out.md'"
